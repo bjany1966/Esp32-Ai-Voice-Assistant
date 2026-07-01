@@ -41,7 +41,8 @@ RUN mkdir -p $HF_HOME $TORCH_HOME && \
  
 WORKDIR /code
  
-COPY requirements.txt /code/requirements.txt
+COPY ServerFiles/requirements.txt /code/requirements.txt
+
  
 RUN pip install --no-cache-dir sentencepiece\
     pip install --no-cache-dir --upgrade pip setuptools wheel && \
@@ -54,7 +55,8 @@ RUN pip install --no-cache-dir sentencepiece\
     rm -rf /tmp/* && \
     rm -rf /var/tmp/*
  
-COPY . /code/
+COPY ServerFiles/ .
+
  
 RUN useradd --create-home --shell /bin/bash app && \
     chown -R app:app /code && \
