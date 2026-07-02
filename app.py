@@ -35,10 +35,12 @@ elif request.data and len(request.data) > 44:
         model = genai.GenerativeModel("gemini-2.5-flash")
         
         # Megkérjük a Geminit, hogy hallgassa meg a hangot, és válaszoljon magyarul
-        response = model.generate_content([
-            uploaded_file, 
-            "Hallgasd meg ezt a magyar beszédhangot, értsd meg a kérdést, és válaszolj rá magyarul, maximum egy-két rövid mondatban, ékezetek nélkül."
-        ])
+        if gépelt_kérdés:
+    response = model.generate_content(f"Válaszolj erre a kérdésre magyarul, maximum egy rövid mondatban, ékezetek nélkül: {gépelt_kérdés}")
+else:
+    uploaded_file = genai.upload_file(path="/tmp/input.wav")
+    response = model.generate_content([uploaded_file, "Hallgasd meg ezt a magyar beszedhangot es valaszolj ra magyarul rovid egy mondatban ekezetek nelkul."])
+
         valasz_szoveg = response.text
         print(f"Gemini válasza: {valasz_szoveg}")
 
