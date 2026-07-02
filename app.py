@@ -5,7 +5,7 @@ import requests
 
 app = Flask(__name__)
 
-# Konfiguráljuk a Geminit
+# Gemini kulcs betöltése
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "HIÁNYZIK")
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -16,37 +16,20 @@ def status():
 @app.route('/process_audio', methods=['POST'])
 def process_audio():
     try:
-        # Kiolvassuk az Arduino által küldött gépelt kérdést a fejlécből
-        gépelt_kérdés = request.headers.get("X-Question", None)
+        # Beolvassuk a tiszta JSON kérdést az ESP32-től
+        data = request.get_json(silent=True) or {}
+        gépelt_kérdés = data.get("text", "szia")
         
-               # Audio adat fogadása (Űrlapként VAGY nyers bináris adatként az ESP32-től)
-        if 'file' in request.files:
-            audio_file = request.files['file']
-            audio_file.save("/tmp/input.wav")
-        elif request.data:
-            with open("/tmp/input.wav", "wb") as f:
-                f.write(request.data)
-        else:
-            return jsonify({"error": "Nincs audio adat"}), 400
-
-
-        # Gemini meghívása a kérés típusától függően
-        if gépelt_kérdés:
-            print(f"Gépelt kérdés érkezett: {gépelt_kérdés}")
-            model = genai.GenerativeModel("gemini-2.5-flash")
-            response = model.generate_content(f"Válaszolj erre a kérdésre magyarul, maximum egy rövid mondatban, ékezetek nélkül: {gépelt_kérdés}")
-        else:
-            uploaded_file = genai.upload_file(path="/tmp/input.wav")
-            model = genai.GenerativeModel("gemini-2.5-flash")
-            response = model.generate_content([
-                uploaded_file, 
-                "Hallgasd meg ezt a magyar beszedhangot es valaszolj ra magyarul rovid egy mondatban ekezetek nelkul."
-            ])
-            
+        print(f"Érkezett gépelt kérdés: {gépelt_kérdés}")
+        
+        # Meghívjuk a Geminit tiszta szöveggel
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        response = model.generate_content(f"Válaszolj erre a kérdésre magyarul, maximum egy nagyon rövid mondatban, ékezetek és speciális karakterek nélkül: {gépelt_kérdés}")
+        
         valasz_szoveg = response.text
         print(f"Gemini válasza: {valasz_szoveg}")
 
-        # Hang generálása MP3-ba a Google Translate segítségével
+        # Elkészítjük a tiszta MP3 hangot a Google Translate segítségével
         tts_url = f"https://google.com{valasz_szoveg.replace(' ', '%20')}"
         headers = {"User-Agent": "Mozilla/5.0"}
         audio_data = requests.get(tts_url, headers=headers).content
@@ -55,6 +38,8 @@ def process_audio():
             f.write(audio_data)
 
         render_url = request.url_root.rstrip('/')
+        
+        # Visszaküldjük a pontos JSON válaszstruktúrát az ESP32-nek
         return jsonify({
             "message": valasz_szoveg,
             "file_id": "12345",
