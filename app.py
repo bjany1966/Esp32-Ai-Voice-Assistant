@@ -18,13 +18,16 @@ def status():
 def process_audio():
     try:
         # 1. Fogadjuk a hangfájlt az ESP32 mikrofonjáról
-        if 'file' in request.files:
-            audio_file = request.files['file']
-            audio_file.save("/tmp/input.wav")
-        else:
-            # Ha nyers adatként küldi a mikrofon bájtokat
-            with open("/tmp/input.wav", "wb") as f:
-                f.write(request.data)
+        # Ha az Arduino szöveges tesztet küld a fejlécben
+gépelt_kérdés = request.headers.get("X-Question", None)
+
+if 'file' in request.files:
+    audio_file = request.files['file']
+    audio_file.save("/tmp/input.wav")
+elif request.data and len(request.data) > 44:
+    with open("/tmp/input.wav", "wb") as f:
+        f.write(request.data)
+
 
         # 2. Beszédfelismerés és válasz a Geminivel egy lépésben!
         # Feltöltjük a hangfájlt közvetlenül a Google AI-ba
