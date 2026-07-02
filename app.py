@@ -19,13 +19,16 @@ def process_audio():
         # Kiolvassuk az Arduino által küldött gépelt kérdést a fejlécből
         gépelt_kérdés = request.headers.get("X-Question", None)
         
-        # Audio fájl kezelése (ha mikrofonról érkezik)
+               # Audio adat fogadása (Űrlapként VAGY nyers bináris adatként az ESP32-től)
         if 'file' in request.files:
             audio_file = request.files['file']
             audio_file.save("/tmp/input.wav")
-        elif request.data and len(request.data) > 44:
+        elif request.data:
             with open("/tmp/input.wav", "wb") as f:
                 f.write(request.data)
+        else:
+            return jsonify({"error": "Nincs audio adat"}), 400
+
 
         # Gemini meghívása a kérés típusától függően
         if gépelt_kérdés:
