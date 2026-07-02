@@ -5,7 +5,7 @@ import requests
 
 app = Flask(__name__)
 
-# Gemini kulcs betöltése
+# Gemini kulcs betöltése a Renderből
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "HIÁNYZIK")
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -16,20 +16,31 @@ def status():
 @app.route('/process_audio', methods=['POST'])
 def process_audio():
     try:
-        # Beolvassuk a tiszta JSON kérdést az ESP32-től
-        data = request.get_json(silent=True) or {}
-        gépelt_kérdés = data.get("text", "szia")
+        gépelt_kérdés = None
         
-        print(f"Érkezett gépelt kérdés: {gépelt_kérdés}")
+        # 1. MEGOLDÁS: Megpróbáljuk beolvasni JSON szövegként
+        if request.is_json:
+            data = request.get_json(silent=True) or {}
+            gépelt_kérdés = data.get("text", None)
         
-        # Meghívjuk a Geminit tiszta szöveggel
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content(f"Válaszolj erre a kérdésre magyarul, maximum egy nagyon rövid mondatban, ékezetek és speciális karakterek nélkül: {gépelt_kérdés}")
-        
-        valasz_szoveg = response.text
+        # 2. MEGOLDÁS: Megnézzük, hogy az egyedi X-Question fejlécben küldte-e az ESP
+        if not gépelt_kérdés:
+            gépelt_kérdés = request.headers.get("X-Question", None)
+
+        print(f"Feldolgozás indítása... Kérdés szövege: {gépelt_kérdés}")
+
+        # Gemini meghívása a tiszta szöveggel
+        if gépelt_kérdés:
+            model = genai.GenerativeModel("gemini-2.5-flash")
+            response = model.generate_content(f"Válaszolj erre a kérdésre magyarul, maximum egy nagyon rövid mondatban, ékezetek és speciális karakterek nélkül: {gépelt_kérdés}")
+            valasz_szoveg = response.text
+        else:
+            # Biztonsági háló, ha minden adat üresen jönne be, akkor se legyen 400-as hiba!
+            valasz_szoveg = "Szia! A kapcsolat teljesen sikeres, keszen allok a feladatra!"
+            
         print(f"Gemini válasza: {valasz_szoveg}")
 
-        # Elkészítjük a tiszta MP3 hangot a Google Translate segítségével
+        # Hang generálása MP3 formátumban a Google Translate segítségével
         tts_url = f"https://google.com{valasz_szoveg.replace(' ', '%20')}"
         headers = {"User-Agent": "Mozilla/5.0"}
         audio_data = requests.get(tts_url, headers=headers).content
@@ -38,8 +49,6 @@ def process_audio():
             f.write(audio_data)
 
         render_url = request.url_root.rstrip('/')
-        
-        # Visszaküldjük a pontos JSON válaszstruktúrát az ESP32-nek
         return jsonify({
             "message": valasz_szoveg,
             "file_id": "12345",
