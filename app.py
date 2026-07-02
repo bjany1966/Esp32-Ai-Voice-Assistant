@@ -6,8 +6,9 @@ import requests
 app = Flask(__name__)
 
 # Gemini kulcs betöltése a Renderből
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "HIÁNYZIK")
+GEMINI_API_KEY = "AQ.Ab8RN6JTB5FKsI5Y8hCrR1gUZjk2VaonFwZAx9YK2AD0meksxw"
 genai.configure(api_key=GEMINI_API_KEY)
+
 
 @app.route('/status', methods=['GET'])
 def status():
